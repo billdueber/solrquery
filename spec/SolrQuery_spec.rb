@@ -71,11 +71,18 @@ describe "A compound lucene query" do
     @q2 =   SolrQuery::Lucene.new 'apache'
   end
   
-  it "will AND two queries" do
-    (@q1 * @q2).to_s.should == '(_query_:"{!lucene}name:(solr)^3" AND _query_:"{!lucene}(apache)")'
+  it "with AND two queries" do
+    
+    # Need to tease out the $q1234 from the actual queries and only and the queries
+    # Maybe a "compound" method that returns the query and terms as separate fields?
+    
+    (@q1 * @q2).to_s.should match /_query_:"\{!lucene\s+df='name'\s+v=\$q(\d+)\}"\^3
+                                              &q\1=solr\s+AND\s+/
+  end                                            
+    
   end
   
-  it 'will OR two queries' do
+  it 'with OR two queries' do
     (@q1 / @q2).to_s.should == '(_query_:"{!lucene}name:(solr)^3" OR _query_:"{!lucene}(apache)")'
     puts (@q1 / @q2).to_s
   end
