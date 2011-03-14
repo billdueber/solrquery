@@ -1,0 +1,18 @@
+
+
+Dir.glob('*.jar') {|f| require f}
+sd = '../../solr'    
+
+Java::Java.lang.System.setProperty('solr.solr.home', sd)
+initializer = Java::org.apache.solr.core.CoreContainer::Initializer.new
+cc = initializer.java_send(:initialize)
+server = Java::org.apache.solr.client.solrj.embedded.EmbeddedSolrServer.new(cc, '')  
+include_class Java::org.apache.solr.client.solrj.SolrQuery 
+q = SolrQuery.new 
+q.setQuery('*:*')
+rsp = server.query(q)
+rsp.results.each do |doc|
+  puts doc['name']
+end
+
+cc.shutdown
