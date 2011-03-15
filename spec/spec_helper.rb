@@ -8,7 +8,6 @@ require 'solrquery'
 Dir["#{File.dirname(__FILE__)}/support/**/*.rb"].each {|f| require f}
 
 
-## Define the solr embedded system
 
 RSpec.configure do |config|
 end

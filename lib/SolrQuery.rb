@@ -61,45 +61,76 @@ module SolrQuery
   end
   
   class Lucene < AbstractQuery
-    attr_accessor :field, :terms, :boost
+    attr_accessor :field, :boost
+    attr_accessor :tokens
     
-    def initialize terms=nil, field=nil, boost=nil
-      @terms = Array(terms)
+    def initialize tokens=nil, field=nil, boost=nil
+      @tokens = tokens
       @field = field
       @boost = boost
       @type = "lucene"
       @lp = {}
     end
     
+    
     def defaultOp
       return @lp['q.op']
     end
-            
-    def to_s
+    
+    def terms inner = nil
+      t = []
+      if @op
+        t += @left.terms(true) + @right.terms(true)
+      else 
+        t = [@tokens]
+      end
+      
+      if inner
+        return t
+      else
+        t = t.compact.uniq
+        rv = {}
+        t.each_with_index do |v, i|
+          rv[v] = "q#{i}"
+        end
+        return rv
+      end
+    end
+    
+    def query
+      rv = {'q' => qonly}
+      self.terms.each_pair do |val, arg|
+        rv[arg] = val
+      end
+      return rv
+    end
+    
+    def qonly terms=nil
+      
+      terms ||= self.terms
+      
       
       if @op
         if @left
-          return "(#{@left} #{@op} #{@right})"
+          return "(#{@left.qonly terms} #{@op} #{@right.qonly terms})"
         else
-          return "(#{@op} #{right})"
+          return "(#{@op} #{right.qonly terms})"
         end
       else
-    
         @lp['df'] = @field if @field
         
       
         boost = ''
         boost = "^#{@boost}" if @boost
       
-        id = 'q' + @terms.object_id.to_s
-        terms = "#{@terms.join(' ')}"
+        id = terms[@tokens]
       
         args = @lp.each.map{|k,v| "#{k}='#{v}'"}.join(' ')
         
         args = ' ' + args if args != ''
+        puts "About to return the string"
+        return "_query_:\"{!#{@type}#{args} v=$#{id}}\"#{boost}"
 
-      
-        "_query_:\"{!#{@type}#{args} v=$#{id}}\"#{boost}&#{id}=#{terms}"
       end
     end
 
