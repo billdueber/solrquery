@@ -109,27 +109,23 @@ module SolrQuery
       
       terms ||= self.terms
       
+      b = @boost? '^' + @boost.to_s : ''
       
       if @op
         if @left
-          return "(#{@left.qonly terms} #{@op} #{@right.qonly terms})"
+          return "(#{@left.qonly terms} #{@op} #{@right.qonly terms})#{b}"
         else
-          return "(#{@op} #{right.qonly terms})"
+          return "(#{@op} #{right.qonly terms})#{b}"
         end
       else
         @lp['df'] = @field if @field
-        
-      
-        boost = ''
-        boost = "^#{@boost}" if @boost
-      
+
         id = terms[@tokens]
       
         args = @lp.each.map{|k,v| "#{k}='#{v}'"}.join(' ')
         
         args = ' ' + args if args != ''
-        puts "About to return the string"
-        return "_query_:\"{!#{@type}#{args} v=$#{id}}\"#{boost}"
+        return "_query_:\"{!#{@type}#{args} v=$#{id}}\"#{b}"
 
       end
     end
