@@ -58,24 +58,6 @@ module SolrQuery
     end
     alias_method :not, :-
     
-  end
-  
-  class Lucene < AbstractQuery
-    attr_accessor :field, :boost
-    attr_accessor :tokens
-    
-    def initialize tokens=nil, field=nil, boost=nil
-      @tokens = tokens
-      @field = field
-      @boost = boost
-      @type = "lucene"
-      @lp = {}
-    end
-    
-    
-    def defaultOp
-      return @lp['q.op']
-    end
     
     def terms inner = nil
       t = []
@@ -109,8 +91,6 @@ module SolrQuery
       return rv
     end
     
-    
-    
     def qonly terms=nil
       
       terms ||= self.terms
@@ -124,17 +104,44 @@ module SolrQuery
           return "(#{@op} #{right.qonly terms})#{b}"
         end
       else
-        @lp['df'] = @field if @field
-
-        id = terms[@tokens]
-      
-        args = @lp.each.map{|k,v| "#{k}='#{v}'"}.join(' ')
-        
-        args = ' ' + args if args != ''
-        return "_query_:\"{!#{@type}#{args} v=$#{id}}\"#{b}"
-
+        return self.leafnode(terms)
       end
     end
+    
+    
+  end
+  
+  class Lucene < AbstractQuery
+    attr_accessor :field, :boost
+    attr_accessor :tokens
+    
+    def initialize tokens=nil, field=nil, boost=nil
+      @tokens = tokens
+      @field = field
+      @boost = boost
+      @type = "lucene"
+      @lp = {}
+    end
+    
+    
+    def defaultOp
+      return @lp['q.op']
+    end
+    
+
+    def leafnode termhash
+      b = @boost? '^' + @boost.to_s : ''
+      
+      @lp['df'] = @field if @field
+
+      id = termhash[@tokens]
+    
+      args = @lp.each.map{|k,v| "#{k}='#{v}'"}.join(' ')
+      
+      args = ' ' + args if args != ''
+      return "_query_:\"{!#{@type}#{args} v=$#{id}}\"#{b}"
+    end
+    
 
   end
 end

@@ -20,6 +20,7 @@ describe "A compound lucene query" do
                 _query_:"{!lucene\s+v=\$(q\d+)}"\)/x
     query['q'].should match qmatch
     query['q'] =~ qmatch
+    pp query
     query[$1].should == 'solr'
     query[$2].should == 'apache'
   end
