@@ -80,7 +80,11 @@ module SolrQuery
     def terms inner = nil
       t = []
       if @op
-        t += @left.terms(true) + @right.terms(true)
+        if @left
+          t += @left.terms(true) + @right.terms(true)
+        else
+          t += @right.terms(true)
+        end
       else 
         t = [@tokens]
       end
@@ -104,6 +108,8 @@ module SolrQuery
       end
       return rv
     end
+    
+    
     
     def qonly terms=nil
       
