@@ -2,16 +2,39 @@ module SolrQuery
     
   class AbstractQuery
     
-    attr_accessor :op, :left, :right, :wt, :fl, :q
+    # We're building up a naive parse tree of sorts: 
+    # op is AND/OR/NOT, left and right are children
+
+    attr_accessor :op, :left, :right
     
-    def initialize q=nil
-      @q = q
+    # Initialize the query object.
+    # This will need to be overridden by anything that
+    # doesn't take a single field/boost (e.g., DisMax)
+    #
+    # @param [String] tokens The query string
+    # @param [String] field The field to search on
+    # @param [Float] boost The boost for this whole query
+    
+    
+    def initialize tokens=nil, field=nil, boost=nil
+      @tokens = tokens
+      @field = field
+      @boost = boost
+      @type = "lucene"
+      @lp = {}
     end
     
-    def qstring
-      "Abstract class -- override!"
-    end
-    
+    # Take a hash that maps termstring to URL arguments and return 
+    # a string that will go in the URL (not yet URL-encoded) based on it
+    # for this query type. The reason to use the termhash is so you can have
+    # multiple queries all using the same terms,e.g.
+    # http://...?q=_query_:"{!lucene df='author1' v=$q1}" OR _query_:"{!lucene df='author2' v=$q1}"&q1=my search terms
+    #
+    # This default method takes care of anything in the @lp (localParams) and a basic boost
+    #
+    # @param [Hash] termhash A hash mapping search strings to q1/q2/etc. Generally the output of
+    # self.terms
+
     def leafnode termhash
       b = @boost? '^' + @boost.to_s : ''
       id = termhash[@tokens]
@@ -20,48 +43,6 @@ module SolrQuery
       
       args = ' ' + args if args != ''
       return "_query_:\"{!#{@type}#{args} v=$#{id}}\"#{b}"
-    end
-    
-  
-    def conjoin op, other
-      nq = self.class.new
-      nq.op = op
-      if other
-        nq.left = self
-        nq.right = other
-      else
-        nq.right = self
-      end
-      return nq
-    end
-    
-    def defaultOp= val
-      raise ArgumentError, "Must be 'AND' or 'OR'" unless %w(AND OR).include? val
-      @lp['q.op'] = val
-    end
-    
-    
-    def -@
-      return self.conjoin 'NOT', nil
-    end
-    
-    def * other
-      self.conjoin 'AND', other
-    end
-    alias_method :and, :*
-    
-    def / other
-      self.conjoin 'OR', other
-    end
-    alias_method :or, :/
-    
-    def - other
-      self.conjoin 'NOT', other
-    end
-    alias_method :not, :-
-    
-    def leafterms
-      return [@tokens]
     end
     
     def terms inner = nil
@@ -87,6 +68,43 @@ module SolrQuery
         return rv
       end
     end
+    
+  
+    def conjoin op, other
+      nq = self.class.new
+      nq.op = op
+      if other
+        nq.left = self
+        nq.right = other
+      else
+        nq.right = self
+      end
+      return nq
+    end    
+    
+    def -@
+      return self.conjoin 'NOT', nil
+    end
+    
+    def * other
+      self.conjoin 'AND', other
+    end
+    alias_method :and, :*
+    
+    def / other
+      self.conjoin 'OR', other
+    end
+    alias_method :or, :/
+    
+    def - other
+      self.conjoin 'NOT', other
+    end
+    alias_method :not, :-
+    
+    def leafterms
+      return [@tokens]
+    end
+    
     
     def query
       rv = {'q' => qonly}
@@ -135,6 +153,11 @@ module SolrQuery
     
     def defaultOp
       return @lp['q.op']
+    end
+  
+    def defaultOp= val
+      raise ArgumentError, "Must be 'AND' or 'OR'" unless %w(AND OR).include? val
+      @lp['q.op'] = val
     end
     
 
