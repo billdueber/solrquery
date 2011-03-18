@@ -12,15 +12,17 @@ module SolrQuery
       "Abstract class -- override!"
     end
     
+    def leafnode termhash
+      b = @boost? '^' + @boost.to_s : ''
+      id = termhash[@tokens]
     
-    def to_s
-      if @q
-        "#{@qstring}"
-      else
-        "(#{left} #{op} #{right})"
-      end
+      args = @lp.each.map{|k,v| "#{k}='#{v}'"}.join(' ')
+      
+      args = ' ' + args if args != ''
+      return "_query_:\"{!#{@type}#{args} v=$#{id}}\"#{b}"
     end
     
+  
     def conjoin op, other
       nq = self.class.new
       nq.op = op
@@ -58,6 +60,9 @@ module SolrQuery
     end
     alias_method :not, :-
     
+    def leafterms
+      return [@tokens]
+    end
     
     def terms inner = nil
       t = []
@@ -68,7 +73,7 @@ module SolrQuery
           t += @right.terms(true)
         end
       else 
-        t = [@tokens]
+        t = self.leafterms
       end
       
       if inner
@@ -123,23 +128,13 @@ module SolrQuery
       @lp = {}
     end
     
+    def leafnode termhash
+      @lp['df'] = @field if @field
+      super
+    end
     
     def defaultOp
       return @lp['q.op']
-    end
-    
-
-    def leafnode termhash
-      b = @boost? '^' + @boost.to_s : ''
-      
-      @lp['df'] = @field if @field
-
-      id = termhash[@tokens]
-    
-      args = @lp.each.map{|k,v| "#{k}='#{v}'"}.join(' ')
-      
-      args = ' ' + args if args != ''
-      return "_query_:\"{!#{@type}#{args} v=$#{id}}\"#{b}"
     end
     
 
