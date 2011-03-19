@@ -14,6 +14,7 @@ module SolrQuery
     # @param [String] tokens The query string
     # @param [String] field The field to search on
     # @param [Float] boost The boost for this whole query
+    # @return [AbstractQuery or subclass] The new query object.
     
     
     def initialize tokens=nil, field=nil, boost=nil
@@ -32,6 +33,9 @@ module SolrQuery
     #
     # This default method takes care of anything in the @lp (localParams) and a basic boost
     #
+    # Everything in the termhash gets turned into URL components, so if you need to stick extra
+    # stuff in there, you can (for, e.g., boost queries)
+    #
     # @param [Hash] termhash A hash mapping search strings to q1/q2/etc. Generally the output of
     # self.terms
 
@@ -44,6 +48,16 @@ module SolrQuery
       args = ' ' + args if args != ''
       return "_query_:\"{!#{@type}#{args} v=$#{id}}\"#{b}"
     end
+    
+    
+    # In inner == false, return a hash of all the term strings mapped to arbitrary
+    # identifiers (in this implementation, q1, q2, ...). 
+    #
+    # If inner == true, return an Array of term strings, which will (later on) be 
+    # deduplicated and turned into the hash.
+    #
+    # Basically, call it with inner==false on the node you want to 
+    # get the termlist for.
     
     def terms inner = nil
       t = []
@@ -116,7 +130,7 @@ module SolrQuery
     
     def qonly terms=nil
       
-      terms ||= self.terms
+      terms = self.terms
       
       b = @boost? '^' + @boost.to_s : ''
       
