@@ -173,7 +173,29 @@ module SolrQuery
       raise ArgumentError, "Must be 'AND' or 'OR'" unless %w(AND OR).include? val
       @lp['q.op'] = val
     end
-    
-
   end
+  
+  # A dismax query is different in that instead of taking a single field, it takes
+  # multiple field/boosts and multiple pf/boosts
+  
+  class DisMax < AbstractQuery
+    def initialize tokens=nil, fields={}, pf = {}
+      @tokens = tokens
+      @fields = fields
+      @pf = pf
+      @type = 'dismax'
+      @lp = {}
+    end
+    
+    attr_accessor :fields, :pf
+    
+    def leafnode termhash
+      # build field list
+      # build pf list
+      # do something with boost query
+      super
+    end
+  end
+    
+  
 end
