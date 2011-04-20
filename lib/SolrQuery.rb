@@ -105,10 +105,10 @@ module SolrQuery
     end
     alias_method :and, :*
     
-    def / other
+    def | other
       self.conjoin 'OR', other
     end
-    alias_method :or, :/
+    alias_method :or, :|
     
     def - other
       self.conjoin 'NOT', other
@@ -130,7 +130,7 @@ module SolrQuery
     
     def qonly terms=nil
       
-      terms = self.terms
+      terms ||= self.terms
       
       b = @boost? '^' + @boost.to_s : ''
       

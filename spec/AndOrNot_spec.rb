@@ -15,12 +15,12 @@ describe "A compound lucene query" do
 
   it "can AND together two queries" do
     query = (@q1 * @q2).query
+    
     qmatch = /\(_query_:"{!lucene\s+df='name'\s+v=\$(q\d+)}"\^3\s+
                AND\s+
                 _query_:"{!lucene\s+v=\$(q\d+)}"\)/x
     query['q'].should match qmatch
     query['q'] =~ qmatch
-    pp query
     query[$1].should == 'solr'
     query[$2].should == 'apache'
   end
@@ -37,4 +37,17 @@ describe "A compound lucene query" do
     query[$1].should == 'solr'
     query[$2].should == 'apache'
   end  
+  
+  it "can OR two queries" do
+    query = (@q1 | @q2).query
+    
+    qmatch = /\(_query_:"{!lucene\s+df='name'\s+v=\$(q\d+)}"\^3\s+
+               OR\s+
+                _query_:"{!lucene\s+v=\$(q\d+)}"\)/x
+    query['q'].should match qmatch
+    query['q'] =~ qmatch
+    query[$1].should == 'solr'
+    query[$2].should == 'apache'
+  end
+  
 end
