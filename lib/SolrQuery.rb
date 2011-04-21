@@ -5,7 +5,7 @@ module SolrQuery
     # We're building up a naive parse tree of sorts: 
     # op is AND/OR/NOT, left and right are children
 
-    attr_accessor :op, :left, :right
+    attr_accessor :op, :left, :right, :boost
     
     # Initialize the query object.
     # This will need to be overridden by anything that
@@ -179,6 +179,10 @@ module SolrQuery
   # multiple field/boosts and multiple pf/boosts
   
   class DisMax < AbstractQuery
+
+    attr_accessor :fields, :pf
+    
+    
     def initialize tokens=nil, fields={}, pf = {}
       @tokens = tokens
       @fields = fields
@@ -187,11 +191,10 @@ module SolrQuery
       @lp = {}
     end
     
-    attr_accessor :fields, :pf
     
     def leafnode termhash
-      # build field list
-      # build pf list
+      @lp['qf'] = fields.each_pair.map {|k,v| "#{k}^#{v}"}.join(' ') if fields.size > 0
+      @lp['pf'] = pf.each_pair.map {|k,v| "#{k}^#{v}"}.join(' ') if pf.size > -0
       # do something with boost query
       super
     end

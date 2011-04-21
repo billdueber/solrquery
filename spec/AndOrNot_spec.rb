@@ -11,6 +11,8 @@ describe "A compound lucene query" do
   before(:each) do
     @q1 =   SolrQuery::Lucene.new 'solr', 'name', 3
     @q2 =   SolrQuery::Lucene.new 'apache'
+    @q3 =   SolrQuery::Lucene.new 'three'
+    @q4 =   SolrQuery::Lucene.new 'four', 'name', 4
   end
 
   it "can AND together two queries" do
@@ -49,5 +51,18 @@ describe "A compound lucene query" do
     query[$1].should == 'solr'
     query[$2].should == 'apache'
   end
-  
+    
+end
+
+describe "A compound dismax query" do
+  before(:each) do
+    @q1 =   SolrQuery::DisMax.new 'kwone', {'one'=>10, 'oneone'=>11}
+    @q2 =   SolrQuery::DisMax.new 'kwtwo', {'twp' => 2}
+    @q3 =   SolrQuery::DisMax.new 'kwthree', {'three'=>3}
+    @q4 =   SolrQuery::DisMax.new 'kwfour', {'four'=>4}, {'pffour'=>444}
+  end
+
+  it "should work" do
+    pp (@q1 | (@q3 * @q4)).query
+  end
 end

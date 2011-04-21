@@ -66,12 +66,10 @@ describe "Interal ops" do
   
   describe "A simple DisMax query" do
     it 'with one term' do
-      q = SolrQuery::DisMax.new "solr"
+      q = SolrQuery::DisMax.new "solr", {'all' => 100, 'title' => 200}
       query = q.query
-      qmatch = /_query_:"\{!dismax v=\$(q\d+)\}"/
-      query['q'].should match qmatch
-      query['q'] =~  qmatch
-      query[$1].should == 'solr'
+      query['q0'].should == 'solr'
+      query['q'].should match /\{\!dismax qf='all\^100 title\^200' v=\$q0\}/
     end
   end
   
