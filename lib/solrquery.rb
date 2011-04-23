@@ -5,7 +5,7 @@ module SolrQuery
     # We're building up a naive parse tree of sorts: 
     # op is AND/OR/NOT, left and right are children
 
-    attr_accessor :op, :left, :right, :boost
+    attr_accessor :op, :left, :right, :boost, :tokens
     
     # Initialize the query object.
     # This will need to be overridden by anything that
