@@ -135,10 +135,10 @@ module SolrQuery
       return self.conjoin 'NOT', nil
     end
     
-    def * other
+    def & other
       self.conjoin 'AND', other
     end
-    alias_method :and, :*
+    alias_method :and, :&
     
     def | other
       self.conjoin 'OR', other
