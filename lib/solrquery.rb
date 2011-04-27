@@ -1,3 +1,5 @@
+require 'uri'
+
 module SolrQuery
 
   # The abstract superclass for different types of solr queries.
@@ -151,6 +153,17 @@ module SolrQuery
     alias_method :not, :-
     
     
+    # A string suitable for dropping onto the end of a solr URL to do the query
+    # 
+    # @return [String] an already-URI-encoded string of the form q=_query_:"..."&q1=term2 term3&...
+    def as_URL_snippet
+      return self.query.map{|k,v| "#{k}=>#{URI.escape(v)}"}.join('&')
+    end
+    
+    
+    # The query is a hash that includes both the q parameter and all the id=>tokenstring
+    # pairs. 
+    # @return [Hash] A hash of the form {q=>"<long query>", q1=>"tokenstring1", ...}
     def query
       rv = {'q' => query_without_terms}
       self.terms.each_pair do |val, arg|
@@ -159,9 +172,13 @@ module SolrQuery
       return rv
     end
     
-    def query_without_terms terms=nil
-      
-      terms ||= self.terms
+    # The full query with the tokenstrings replaced by the appropriate 
+    # q1, q2, etc. You end up with something like
+    #  _query_:"{!lucene val=q1} AND {!dismax ...}"
+    # 
+    # @param [Hash] terms The mapping of q1/q2/... to tokenstrings
+    
+    def query_without_terms terms=self.terms
       
       b = @boost? '^' + @boost.to_s : ''
       
