@@ -152,14 +152,14 @@ module SolrQuery
     
     
     def query
-      rv = {'q' => qonly}
+      rv = {'q' => query_without_terms}
       self.terms.each_pair do |val, arg|
         rv[arg] = val
       end
       return rv
     end
     
-    def qonly terms=nil
+    def query_without_terms terms=nil
       
       terms ||= self.terms
       
@@ -167,9 +167,9 @@ module SolrQuery
       
       if @op
         if @left
-          return "(#{@left.qonly terms} #{@op} #{@right.qonly terms})#{b}"
+          return "(#{@left.query_without_terms terms} #{@op} #{@right.query_without_terms terms})#{b}"
         else
-          return "(#{@op} #{right.qonly terms})#{b}"
+          return "(#{@op} #{right.query_without_terms terms})#{b}"
         end
       else
         return self.leafnode(terms)
