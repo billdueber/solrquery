@@ -1,42 +1,62 @@
 module SolrQuery
-    
+
+  # The abstract superclass for different types of solr queries.
+  #    
+  # We're really overloading this class to be either a leaf node
+  # (with an actual query) or an internal node (with an operator and one
+  # or two child notes, each of which might also be either a leaf or a
+  # tree)
+
   class AbstractQuery
     
-    # We're building up a naive parse tree of sorts: 
-    # op is AND/OR/NOT, left and right are children
+    # For a leaf, the tokens to seach on. Could be compled (e.g., with quotes)
+    attr_accessor :tokens
+    
+    # A hash mapping 'solrfield' => boost.
+    attr_accessor :fields
+    
+    # How much to boost this particular query (leaf or tree)
+    attr_accessor :boost
 
-    attr_accessor :op, :left, :right, :boost, :tokens
+    # The operator (AND/OR/NOT)
+    attr_accessor :op
     
+    # The left side of the binary operator (AND/OR)
+    attr_accessor :left
+    
+    # The right side of the binary operator (AND/OR/NOT)
+    attr_accessor :right
+    
+    # Local parameters
+    attr_accessor :lp
+    
+    ##
     # Initialize the query object.
-    # This will need to be overridden by anything that
-    # doesn't take a single field/boost (e.g., DisMax)
-    #
-    # @param [String] tokens The query string
-    # @param [String] field The field to search on
-    # @param [Float] boost The boost for this whole query
+    # 
+    # @option opts [String] :tokens The query string
+    # @option opts [String] :fields The field to search on
+    # @option opts [Float] :boost The boost for this whole query
     # @return [AbstractQuery or subclass] The new query object.
-    
-    
-    def initialize tokens=nil, field=nil, boost=nil
-      @tokens = tokens
-      @field = field
-      @boost = boost
-      @type = "lucene"
-      @lp = {}
+    def initialize opts={}
+      @tokens = opts[:tokens]
+      @fields = opts[:fields] || {}
+      @boost = opts[:boost]
+      @type = "must_be_overridden"
+      @lp = {} # the local params
     end
     
     # Take a hash that maps termstring to URL arguments and return 
     # a string that will go in the URL (not yet URL-encoded) based on it
     # for this query type. The reason to use the termhash is so you can have
-    # multiple queries all using the same terms,e.g.
-    # http://...?q=_query_:"{!lucene df='author1' v=$q1}" OR _query_:"{!lucene df='author2' v=$q1}"&q1=my search terms
+    # multiple queries all using the same terms, e.g.
+    #     http://...?q=_query_:"{!lucene df='author1' v=$q1}" OR _query_:"{!lucene df='author2' v=$q1}"&q1=my search terms
     #
     # This default method takes care of anything in the @lp (localParams) and a basic boost
     #
     # Everything in the termhash gets turned into URL components, so if you need to stick extra
     # stuff in there, you can (for, e.g., boost queries)
     #
-    # @param [Hash] termhash A hash mapping search strings to q1/q2/etc. Generally the output of
+    # @param [Hash] termhash A hash mapping search strings to q1/q2/etc. -- the output of
     # self.terms
 
     def leafnode termhash
@@ -50,14 +70,23 @@ module SolrQuery
     end
     
     
-    # In inner == false, return a hash of all the term strings mapped to arbitrary
-    # identifiers (in this implementation, q1, q2, ...). 
-    #
-    # If inner == true, return an Array of term strings, which will (later on) be 
-    # deduplicated and turned into the hash.
-    #
+    # In the default case (inner == false) on a tree, walk the query tree and get a hash of 
+    # token strings (the actual queries, as opposed to the fields, booleans, etc.). 
+    # mapped to arbitrary identifiers (in this implementation, q1, q2, q3, ...)]
+    # 
+    # In the recursive call (inner == true) on tree, walk the tree and build
+    # up a (nonunique) array of tokenstrings. This is what the nonrecursive call
+    # deduplicates and turns into the eventual return Hash.
+    # 
+    # Called against a leaf node, just return the tokenstring(s) from the leaf
+    # 
     # Basically, call it with inner==false on the node you want to 
     # get the termlist for.
+    # 
+    # @param [Boolean] inner Flag indicating whether this is a top-level call (inner == false)
+    # or a recursive call (inner == true)
+    # return [Hash, Array] Either an array of tokenstring (inner==true) or a hash mapping
+    # arbitrary ids (q1,q2) to those tokenstrings
     
     def terms inner = nil
       t = []
@@ -83,7 +112,13 @@ module SolrQuery
       end
     end
     
-  
+    # Return the set of tokenstrings for this leaf node
+    # @return [Array<String>] The tokenstrings for this node
+    def leafterms
+      return [@tokens]
+    end
+    
+    
     def conjoin op, other
       nq = self.class.new
       nq.op = op
@@ -114,10 +149,6 @@ module SolrQuery
       self.conjoin 'NOT', other
     end
     alias_method :not, :-
-    
-    def leafterms
-      return [@tokens]
-    end
     
     
     def query
