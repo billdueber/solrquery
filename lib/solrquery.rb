@@ -36,7 +36,7 @@ module SolrQuery
     # Initialize the query object.
     # 
     # @option opts [String] :tokens The query string
-    # @option opts [String] :fields The field to search on
+    # @option opts [Hash] :fields A set of 'solrfield'=>'boost' pairs
     # @option opts [Float] :boost The boost for this whole query
     # @return [AbstractQuery or subclass] The new query object.
     def initialize opts={}
@@ -120,6 +120,9 @@ module SolrQuery
       return [@tokens]
     end
     
+    # Combine the current query with another via the passed operator
+    # @param ["AND", "OR", "NOT"] op The operator
+    # @return [AbstractQuery] The new query
     
     def conjoin op, other
       nq = self.class.new
@@ -133,24 +136,30 @@ module SolrQuery
       return nq
     end    
     
+    # Unary NOT of this query (the -@ is ruby magic for a leading minus sign, e.g. '-q')
     def -@
       return self.conjoin 'NOT', nil
     end
+    alias_method :not, :-@
     
+    # Boolean NOT for two queries
+    def - other
+      self.conjoin 'NOT', other
+    end
+    alias_method :not, :-
+
+    # Boolean AND of two queries
     def & other
       self.conjoin 'AND', other
     end
     alias_method :and, :&
     
+    # Boolean OR of two queries
     def | other
       self.conjoin 'OR', other
     end
     alias_method :or, :|
     
-    def - other
-      self.conjoin 'NOT', other
-    end
-    alias_method :not, :-
     
     
     # A string suitable for dropping onto the end of a solr URL to do the query
@@ -192,26 +201,44 @@ module SolrQuery
         return self.leafnode(terms)
       end
     end
-    
-    
   end
   
   class Lucene < AbstractQuery
-    attr_accessor :field, :boost
-    attr_accessor :tokens
-    
-    def initialize tokens=nil, field=nil, boost=nil
-      @tokens = tokens
-      @field = field
-      @boost = boost
+
+    # The default operator ('AND' or 'OR'). Default is 'AND'
+    attr_accessor :defaultOp
+
+    # Get a new object as per AbstractQuery#initialize and set the type
+    # to 'lucene'
+    # 
+    # In addition to the standard parameters, also allow :defaultOp to set
+    # the default operator to AND/OR
+    # 
+    # If the fields hash has more than one entry, go ahead and build up
+    # the complex query tree with the defaultOp
+    # 
+    # @option opts [String] :tokens The query string
+    # @option opts [String] :fields The field to search on
+    # @option opts [Float] :boost The boost for this whole query
+    # @Option opts ["AND", 'and', :and, 'OR', 'or', :or] :defaultOp The default operator
+    # @return [Lucene] The new query object.object (or tree)
+
+    def initialize opts
+      super
       @type = "lucene"
-      @lp = {}
+      @defaultOp = opts[:defaultOp] || 'AND'
+      
+      # build up a complex query
     end
     
+    # Set the default field, if defined, and kick it up to AbstractQuery
     def leafnode termhash
-      @lp['df'] = @field if @field
+      # Should never have a compound fields hash
+      field,boost = @fields.first
+      @lp['df'] = field if field
       super
     end
+    
     
     def defaultOp
       return @lp['q.op']
