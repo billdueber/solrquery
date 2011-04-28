@@ -209,6 +209,8 @@ module SolrQuery
     
     # The default field to search
     attr_accessor :defaultField
+    alias_method :field, :defaultField
+    alias_method :field=, :defaultField=
 
     # Get a new object as per AbstractQuery#initialize and set the type
     # to 'lucene'
@@ -229,7 +231,7 @@ module SolrQuery
       super
       @type = "lucene"
       @defaultOp = opts[:defaultOp] || 'AND'
-      @defaultField = opts[:defaultField]
+      @defaultField = opts[:defaultField] || opts[:field]
       
       # build up a complex query
     end
