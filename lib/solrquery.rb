@@ -1,5 +1,4 @@
 require 'uri'
-
 module SolrQuery
 
   # The abstract superclass for different types of solr queries.
@@ -12,7 +11,7 @@ module SolrQuery
   class AbstractQuery
     
     # For a leaf, the tokens to seach on. Could be compled (e.g., with quotes)
-    attr_accessor :tokens
+    attr_accessor :search
     
     # A hash mapping 'solrfield' => boost.
     attr_accessor :fields
@@ -35,12 +34,12 @@ module SolrQuery
     ##
     # Initialize the query object.
     # 
-    # @option opts [String] :tokens The query string
+    # @option opts [String] :search The query string
     # @option opts [Hash] :fields A set of 'solrfield'=>'boost' pairs
     # @option opts [Float] :boost The boost for this whole query
     # @return [AbstractQuery or subclass] The new query object.
     def initialize opts={}
-      @tokens = opts[:tokens]
+      @tokens = opts[:search]
       @fields = opts[:fields] || {}
       @boost = opts[:boost]
       @type = "must_be_overridden"
@@ -207,6 +206,9 @@ module SolrQuery
 
     # The default operator ('AND' or 'OR'). Default is 'AND'
     attr_accessor :defaultOp
+    
+    # The default field to search
+    attr_accessor :defaultField
 
     # Get a new object as per AbstractQuery#initialize and set the type
     # to 'lucene'
@@ -217,16 +219,17 @@ module SolrQuery
     # If the fields hash has more than one entry, go ahead and build up
     # the complex query tree with the defaultOp
     # 
-    # @option opts [String] :tokens The query string
+    # @option opts [String] :search The query string
     # @option opts [String] :fields The field to search on
     # @option opts [Float] :boost The boost for this whole query
     # @Option opts ["AND", 'and', :and, 'OR', 'or', :or] :defaultOp The default operator
     # @return [Lucene] The new query object.object (or tree)
 
-    def initialize opts
+    def initialize opts={}
       super
       @type = "lucene"
       @defaultOp = opts[:defaultOp] || 'AND'
+      @defaultField = opts[:defaultField]
       
       # build up a complex query
     end
@@ -234,8 +237,14 @@ module SolrQuery
     # Set the default field, if defined, and kick it up to AbstractQuery
     def leafnode termhash
       # Should never have a compound fields hash
+      @lp['df'] = @defaultField if @defaultField
+      
+      # Override with passed field if there was one
       field,boost = @fields.first
-      @lp['df'] = field if field
+      if field
+        @lp['df'] = field 
+      end
+      
       super
     end
     
