@@ -13,8 +13,6 @@ module SolrQuery
     # For a leaf, the tokens to seach on. Could be compled (e.g., with quotes)
     attr_accessor :search
     
-    # A hash mapping 'solrfield' => boost.
-    attr_accessor :fields
     
     # How much to boost this particular query (leaf or tree)
     attr_accessor :boost
@@ -33,17 +31,15 @@ module SolrQuery
     
     ##
     # Initialize the query object.
-    # 
+    # @param [Hash] opts The options for the new query object
     # @option opts [String] :search The query string
-    # @option opts [Hash] :fields A set of 'solrfield'=>'boost' pairs
-    # @option opts [Float] :boost The boost for this whole query
+    # @option opts [Float] :boost The boost for this query as a whole
     # @return [AbstractQuery or subclass] The new query object.
     def initialize opts={}
-      @tokens = opts[:search]
-      @fields = opts[:fields] || {}
-      @boost = opts[:boost]
-      @type = "must_be_overridden"
-      @lp = {} # the local params
+      @search = opts[:search]
+      @boost  = opts[:boost]
+      @type   = "must_be_overridden"
+      @lp     = {} # the local params
     end
     
     # Take a hash that maps termstring to URL arguments and return 
@@ -62,7 +58,7 @@ module SolrQuery
 
     def leafnode termhash
       b = @boost? '^' + @boost.to_s : ''
-      id = termhash[@tokens]
+      id = termhash[@search]
     
       args = @lp.each.map{|k,v| "#{k}='#{v}'"}.join(' ')
       
@@ -116,7 +112,7 @@ module SolrQuery
     # Return the set of tokenstrings for this leaf node
     # @return [Array<String>] The tokenstrings for this node
     def leafterms
-      return [@tokens]
+      return [@search]
     end
     
     # Combine the current query with another via the passed operator
@@ -217,14 +213,12 @@ module SolrQuery
     # 
     # In addition to the standard parameters, also allow :defaultOp to set
     # the default operator to AND/OR
-    # 
-    # If the fields hash has more than one entry, go ahead and build up
-    # the complex query tree with the defaultOp
-    # 
+    #
+    # @param [Hash] opts The options for the new query object
     # @option opts [String] :search The query string
     # @option opts [String] :fields The field to search on
     # @option opts [Float] :boost The boost for this whole query
-    # @Option opts ["AND", 'and', :and, 'OR', 'or', :or] :defaultOp The default operator
+    # @option opts ["AND", 'and', :and, 'OR', 'or', :or] :defaultOp The default operator
     # @return [Lucene] The new query object.object (or tree)
 
     def initialize opts={}
@@ -266,21 +260,68 @@ module SolrQuery
   
   class DisMax < AbstractQuery
 
-    attr_accessor :fields, :pf
+    
+    # A hash mapping containing 'solrfield' => boost pairs used in this query
+    attr_accessor :fields
+    
+    # A hash mapping solrfields to boosts for phrase queries (same format as fields)
+    attr_accessor :pf
     
     
-    def initialize tokens=nil, fields={}, pf = {}
-      @tokens = tokens
-      @fields = fields
-      @pf = pf
-      @type = 'dismax'
-      @lp = {}
+    # Other DisMax localparams that are simple enough we can store them right in @lp
+    DISMAXLOCALPARAMS = [:ps,:qs,:bf,:bq]
+    
+    
+    ##
+    # Create a new DisMax object
+    #
+    # @param [Hash] opts The options for the new query object    
+    # @option opts [String] :search The query string
+    # @option opts [Hash] :fields ({}) A hash of 'solrfield'=>boost pairs for the query
+    # @option opts [Hash] :pf ({}) A hash of 'solrfield'=>boost pairs for a phrase query
+    # @option opts [Float] :boost The boost for this whole query
+    # @option opts [String] :mm ('100%') The 'mm' DisMax parameter for this query
+    # @option opts [String] :tie ('0.1') The 'tie' DisMax parameter for this query
+    # @option opts [Integer] :ps (nil) The 'ps' DisMax parameter for this query
+    # @option opts [Integer] :qs (nil) The 'qs' DisMax parameter for this query
+    # @see http://wiki.apache.org/solr/DisMaxQParserPlugin General description of DisMax parameters
+    # @see http://wiki.apache.org/solr/SolrRelevancyFAQ#How_can_I_search_for_one_term_near_another_term_.28say.2C_.22batman.22_and_.22movie.22.29 Description and examples of the ps and qs parameters
+    # @see http://lucene.apache.org/solr/api/org/apache/solr/util/doc-files/min-should-match.html Extended information about 'mm'
+
+    def initialize opts={}
+      @search  = opts[:search]
+      @boost   = opts[:boost]
+      @fields  = opts[:fields] || {}
+      @pf      = opts[:pf] || {}
+      @boost   = opts[:boost]
+      @type    = "dismax"
+      
+      @lp      = {} # the local params
+      @lp['mm']  = opts[:mm]  || '100%'
+      @lp['tie'] = opts[:tie] || '0.01'
+      
+      # Set other dismax localparams
+      OTHERPARAMS.each do |p|
+        @lp[p.to_s] = opts[p] if opts[p]
+      end
     end
     
+    # Capture calls to set other localparams
+    def method_missing
     
+    # Set the mm param. I supposed I could make a nice object for it...
+    # @see http://lucene.apache.org/solr/api/org/apache/solr/util/doc-files/min-should-match.html
+    def mm= mm
+      @lp['mm'] = mm
+    end
+    
+    # Constructs the qf/pf strings and adds them to the localparams (@lp) hash, and 
+    # then kicks it up to AbstractQuery
+    # @see AbstractQuery#leafnode
     def leafnode termhash
       @lp['qf'] = fields.each_pair.map {|k,v| "#{k}^#{v}"}.join(' ') if fields.size > 0
       @lp['pf'] = pf.each_pair.map {|k,v| "#{k}^#{v}"}.join(' ') if pf.size > -0
+      
       # do something with boost query
       super
     end
