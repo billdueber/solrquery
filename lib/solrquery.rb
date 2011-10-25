@@ -205,7 +205,6 @@ module SolrQuery
   class Lucene < AbstractQuery
 
     # The default operator ('AND' or 'OR'). Default is 'AND'
-    attr_accessor :defaultOp
     
     # The default field to search
     attr_accessor :defaultField
